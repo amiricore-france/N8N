@@ -1,0 +1,20 @@
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n-server
+    restart: always
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      # Accès local uniquement : http://localhost:5678
+      - N8N_HOST=localhost
+      # Optionnel : supprime l'erreur Python inutile
+      - N8N_BLOCK_PY_TASK_RUNNER=true
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  n8n_data:
