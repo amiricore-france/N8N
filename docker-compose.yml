@@ -13,6 +13,8 @@ services:
       - N8N_HOST=localhost
       # Optionnel : supprime l'erreur Python inutile
       - N8N_BLOCK_PY_TASK_RUNNER=true
+      # Fuseau horaire pour les déclencheurs planifiés (Schedule Trigger)
+      - GENERIC_TIMEZONE=Europe/Paris
     volumes:
       - n8n_data:/home/node/.n8n
 
