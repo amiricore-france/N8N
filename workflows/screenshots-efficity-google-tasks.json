@@ -1,0 +1,796 @@
+[
+  {
+    "updatedAt": "2026-09-10T09:53:56.000Z",
+    "createdAt": "2026-09-07T20:10:37.607Z",
+    "id": "eo76fWYmOCu66GwPy4_Gh",
+    "name": "Screenshots efficity -> Google Tasks",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "triggerAtHour": 7
+              }
+            ]
+          }
+        },
+        "id": "8bc162ae-1f21-4612-92fc-8d3f1606b03c",
+        "name": "Déclencheur quotidien",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          608
+        ]
+      },
+      {
+        "parameters": {
+          "resource": "label",
+          "returnAll": true
+        },
+        "id": "e909c20f-1328-4b50-a02a-abc5dee09c00",
+        "name": "Lister les labels Gmail",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.2,
+        "position": [
+          224,
+          608
+        ],
+        "webhookId": "f2d8f8db-358f-4d9f-8813-714c010cbb05",
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "8BNQqaBRp2Qdn3yz",
+            "name": "Gmail account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const target = \"Pour action - traitement\";\nconst found = $input.all().find(item => item.json.name === target);\nreturn [{\n  json: {\n    labelId: found ? found.json.id : \"\",\n    labelExists: !!found,\n  },\n}];\n"
+        },
+        "id": "5bcfa8ce-f8f0-4327-b3ee-6006e2956e4e",
+        "name": "Chercher le label existant",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          448,
+          608
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "cond-label-exists",
+                "leftValue": "={{ $json.labelExists }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "f2b722d5-c3dc-4033-b67d-c1a810c54390",
+        "name": "Le label existe ?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          672,
+          608
+        ]
+      },
+      {
+        "parameters": {
+          "resource": "label",
+          "operation": "create",
+          "name": "Pour action - traitement",
+          "options": {}
+        },
+        "id": "0b286598-24ed-4650-95ff-9a11a9c783de",
+        "name": "Créer le label",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.2,
+        "position": [
+          864,
+          752
+        ],
+        "webhookId": "4c5e62fe-5996-44d3-8c7c-2888e4ac0531",
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "8BNQqaBRp2Qdn3yz",
+            "name": "Gmail account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "return [{\n  json: {\n    labelId: $json.id,\n    labelExists: true,\n  },\n}];\n"
+        },
+        "id": "90135bf1-8807-45b3-893c-f447282eb2e6",
+        "name": "Normaliser l'ID du nouveau label",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1072,
+          752
+        ]
+      },
+      {
+        "parameters": {},
+        "id": "c5194c49-f875-4d8d-98f2-e3362edafdc8",
+        "name": "Fusionner ID label",
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3.2,
+        "position": [
+          1264,
+          608
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "getAll",
+          "returnAll": true,
+          "simple": false,
+          "filters": {
+            "q": "subject:\"Screenshot (\" -label:\"Pour action - traitement\""
+          },
+          "options": {
+            "downloadAttachments": true
+          }
+        },
+        "id": "32410d56-aac8-4c86-a352-05b246b808aa",
+        "name": "Rechercher les mails",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.2,
+        "position": [
+          1488,
+          608
+        ],
+        "webhookId": "03c0825a-7cf2-467c-8e8f-0d9b1cfc6f52",
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "8BNQqaBRp2Qdn3yz",
+            "name": "Gmail account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "id": "f945c6d2-a49e-497c-bf50-961439991034",
+        "name": "Boucle sur chaque mail",
+        "type": "n8n-nodes-base.splitInBatches",
+        "typeVersion": 3,
+        "position": [
+          1712,
+          608
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const results = [];\n\nfor (const item of $input.all()) {\n  const binary = item.binary || {};\n  const imageKeys = Object.keys(binary).filter((k) => (binary[k].mimeType || \"\").startsWith(\"image/\"));\n\n  const base = {\n    messageId: item.json.id,\n    threadId: item.json.threadId,\n    subject: item.json.subject || \"\",\n    date: item.json.date,\n  };\n\n  if (imageKeys.length === 0) {\n    results.push({ json: { ...base, isImage: false, text: \"\" } });\n  } else {\n    for (const k of imageKeys) {\n      results.push({ json: { ...base, isImage: true }, binary: { data: binary[k] } });\n    }\n  }\n}\n\nreturn results;\n"
+        },
+        "id": "45a59db3-3309-42fa-8bb6-2b782b138a45",
+        "name": "Extraire les pièces jointes images",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1920,
+          528
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "cond-is-image",
+                "leftValue": "={{ $json.isImage }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "ced7bfb8-8940-4bd8-b3e4-2b0c18f16fe2",
+        "name": "A une image ?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          2144,
+          528
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  const buffer = await this.helpers.getBinaryDataBuffer(i, \"data\");\n  const base64Data = buffer.toString(\"base64\");\n  const mimeType = item.binary.data.mimeType;\n  const fileName = item.binary.data.fileName || \"screenshot\";\n  const boundary = \"xxxxxxxxxx\";\n\n  const metadata = {\n    name: fileName,\n    mimeType: \"application/vnd.google-apps.document\",\n  };\n\n  const body =\n    \"--\" + boundary + \"\\r\\n\" +\n    \"Content-Type: application/json; charset=UTF-8\\r\\n\\r\\n\" +\n    JSON.stringify(metadata) + \"\\r\\n\" +\n    \"--\" + boundary + \"\\r\\n\" +\n    \"Content-Type: \" + mimeType + \"\\r\\n\" +\n    \"Content-Transfer-Encoding: base64\\r\\n\\r\\n\" +\n    base64Data + \"\\r\\n\" +\n    \"--\" + boundary + \"--\";\n\n  results.push({\n    json: {\n      messageId: item.json.messageId,\n      threadId: item.json.threadId,\n      subject: item.json.subject,\n      date: item.json.date,\n      multipartBody: body,\n      contentType: \"multipart/related; boundary=\" + boundary,\n    },\n  });\n}\n\nreturn results;\n"
+        },
+        "id": "e31e45b6-bcc4-4b22-b521-e2970d251049",
+        "name": "Construire le corps multipart",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2368,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&ocr=true",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googleDocsOAuth2Api",
+          "sendBody": true,
+          "contentType": "raw",
+          "rawContentType": "={{ $json.contentType }}",
+          "body": "={{ $json.multipartBody }}",
+          "options": {}
+        },
+        "id": "aa79cb34-fcc9-4bb9-8594-76d817db1def",
+        "name": "Envoyer à Drive (OCR)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          2560,
+          400
+        ],
+        "credentials": {
+          "googleDocsOAuth2Api": {
+            "id": "1AAmuRuThKsI9qSH",
+            "name": "Google Docs account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.id }}/export?mimeType=text/plain",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googleDocsOAuth2Api",
+          "options": {
+            "response": {
+              "response": {
+                "responseFormat": "text",
+                "outputPropertyName": "text"
+              }
+            }
+          }
+        },
+        "id": "cc147c1b-29ab-4be2-a2d5-da5694e07120",
+        "name": "Exporter le texte (Drive)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          2768,
+          400
+        ],
+        "credentials": {
+          "googleDocsOAuth2Api": {
+            "id": "1AAmuRuThKsI9qSH",
+            "name": "Google Docs account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "method": "DELETE",
+          "url": "=https://www.googleapis.com/drive/v3/files/{{ $('Envoyer à Drive (OCR)').item.json.id }}",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googleDocsOAuth2Api",
+          "options": {}
+        },
+        "id": "09363ecb-c2f4-468e-8638-8d4c7dfbe22b",
+        "name": "Supprimer le fichier temporaire",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          2960,
+          400
+        ],
+        "credentials": {
+          "googleDocsOAuth2Api": {
+            "id": "1AAmuRuThKsI9qSH",
+            "name": "Google Docs account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "return {\n  json: {\n    isImage: true,\n    messageId: $(\"Construire le corps multipart\").item.json.messageId,\n    threadId: $(\"Construire le corps multipart\").item.json.threadId,\n    subject: $(\"Construire le corps multipart\").item.json.subject,\n    date: $(\"Construire le corps multipart\").item.json.date,\n    text: $(\"Exporter le texte (Drive)\").item.json.text || \"\",\n  },\n};\n"
+        },
+        "id": "9442a616-3c02-4446-ac7c-58605fa2913f",
+        "name": "Réassembler le texte extrait",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3168,
+          400
+        ]
+      },
+      {
+        "parameters": {},
+        "id": "d6c62f52-65a7-468f-a6b2-4bdb102f098f",
+        "name": "Fusionner les textes",
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3.2,
+        "position": [
+          3360,
+          528
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const items = $input.all();\nconst first = items[0].json;\n\nconst texteExtrait = items\n  .map((i) => i.json.text || \"\")\n  .filter((t) => t.trim() !== \"\")\n  .join(\"\\n\")\n  .trim();\n\nconst subject = first.subject || \"\";\nconst objetMail = subject.toLowerCase();\n\nlet ville = \"\";\nif (objetMail.includes(\"pour action\") && objetMail.length > 12) {\n  ville = subject.substring(11).replace(/^[\\s\\-_:\\(\\)]+/, \"\").trim();\n}\n\nif (ville === \"\") {\n  const match = texteExtrait.match(/(\\d{5})\\s+([A-Za-zÀ-ÿ\\s\\-]+)/);\n  if (match && match[2]) {\n    ville = match[2].split(\"\\n\")[0].trim();\n  }\n}\n\nconst dateObj = first.date ? new Date(first.date) : new Date();\nconst dateStr = dateObj.toLocaleDateString(\"fr-FR\", { timeZone: \"Europe/Paris\" });\n\nconst titreTache = \"Suivi action - \" + (ville !== \"\" ? ville + \" - \" : \"\") + dateStr;\nconst texteFinal = texteExtrait === \"\" ? \"Aucun texte extrait.\" : texteExtrait;\nconst lien = \"https://mail.google.com/mail/u/0/#all/\" + first.threadId;\nconst notes = \"--- CONTENU EXTRAIT ---\\n\\n\" + texteFinal + \"\\n\\nLien : \" + lien;\n\nreturn [{\n  json: {\n    title: titreTache,\n    notes,\n    threadId: first.threadId,\n  },\n}];\n"
+        },
+        "id": "9f424952-3b02-46a9-852f-f9ffc2359641",
+        "name": "Déterminer la ville et construire la tâche",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3568,
+          528
+        ]
+      },
+      {
+        "parameters": {
+          "task": "@default",
+          "title": "={{ $json.title }}",
+          "additionalFields": {
+            "notes": "={{ $json.notes }}"
+          }
+        },
+        "id": "4d37a8d2-d937-4211-9ff1-8d9a8edadd8d",
+        "name": "Créer la tâche Google Tasks",
+        "type": "n8n-nodes-base.googleTasks",
+        "typeVersion": 1,
+        "position": [
+          3760,
+          528
+        ],
+        "credentials": {
+          "googleTasksOAuth2Api": {
+            "id": "epvTFxjQ6HJYviKg",
+            "name": "Google Tasks account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "resource": "thread",
+          "operation": "addLabels",
+          "threadId": "={{  $('Déterminer la ville et construire la tâche').item.json.threadId }}",
+          "labelIds": "={{ [ $('Fusionner ID label').first().json.labelId ] }}"
+        },
+        "id": "b1727013-fce3-4c1c-b08b-b70b9a0966bb",
+        "name": "Marquer le mail comme traité",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.2,
+        "position": [
+          3968,
+          528
+        ],
+        "webhookId": "71eddaa4-8290-4581-8787-291c58ad19cd",
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "8BNQqaBRp2Qdn3yz",
+            "name": "Gmail account"
+          }
+        }
+      },
+      {
+        "parameters": {},
+        "id": "19f2b958-f505-476f-a748-441109648ee6",
+        "name": "Terminé",
+        "type": "n8n-nodes-base.noOp",
+        "typeVersion": 1,
+        "position": [
+          1920,
+          784
+        ]
+      },
+      {
+        "parameters": {
+          "content": "## Configuration requise avant activation\n\n1. **Gmail** : les nœuds Gmail utilisent le credential existant *Gmail account*. Vérifiez qu'il est bien connecté au compte rlacamoire@efficity.com (celui surveillé par le script Apps Script).\n2. **Drive (OCR)** : les 3 nœuds HTTP Request (upload OCR, export texte, suppression) réutilisent le credential *Google Docs account*, qui possède déjà le scope Drive complet — rien à faire.\n3. **Google Tasks** : le nœud *Créer la tâche Google Tasks* n'a pas encore de credential. Créez un credential *Google Tasks OAuth2 API*, en réutilisant le même Client ID/Secret que pour Gmail (Google Cloud Console), puis connectez-vous avec le compte Google.\n4. Ajustez si besoin l'heure du *Déclencheur quotidien* (7h par défaut).\n5. Le label Gmail \"Pour action - traitement\" est cherché puis créé automatiquement s'il n'existe pas encore.\n6. Activez le workflow une fois les identifiants configurés.\n",
+          "height": 480,
+          "width": 460,
+          "color": 5
+        },
+        "id": "a46c630a-fb3d-4452-b81c-53a2571317c7",
+        "name": "Notes de configuration",
+        "type": "n8n-nodes-base.stickyNote",
+        "typeVersion": 1,
+        "position": [
+          0,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "resource": "thread",
+          "operation": "removeLabels",
+          "threadId": "={{ $json.id }}",
+          "labelIds": [
+            "INBOX"
+          ]
+        },
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.2,
+        "position": [
+          4176,
+          528
+        ],
+        "id": "a6459ac2-0e6f-4961-8981-b57f742459c0",
+        "name": "Archiver le mail (retirer INBOX)",
+        "webhookId": "37d42d58-0622-4c30-9d54-d4566cdc20e1",
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "8BNQqaBRp2Qdn3yz",
+            "name": "Gmail account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "c9323ce3-3c80-4bbb-bb15-1b91890ad29f",
+                "leftValue": "={{ !($json.labelIds || []).includes($('Fusionner ID label').first().json.labelId) }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "d02c54e6-df23-43de-8434-d8e60fe29111",
+        "name": "Filtrer les mails déjà labellisés",
+        "type": "n8n-nodes-base.filter",
+        "typeVersion": 2.2,
+        "position": [
+          1592,
+          760
+        ]
+      }
+    ],
+    "connections": {
+      "Déclencheur quotidien": {
+        "main": [
+          [
+            {
+              "node": "Lister les labels Gmail",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Lister les labels Gmail": {
+        "main": [
+          [
+            {
+              "node": "Chercher le label existant",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Chercher le label existant": {
+        "main": [
+          [
+            {
+              "node": "Le label existe ?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Le label existe ?": {
+        "main": [
+          [
+            {
+              "node": "Fusionner ID label",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Créer le label",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Créer le label": {
+        "main": [
+          [
+            {
+              "node": "Normaliser l'ID du nouveau label",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Normaliser l'ID du nouveau label": {
+        "main": [
+          [
+            {
+              "node": "Fusionner ID label",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "Fusionner ID label": {
+        "main": [
+          [
+            {
+              "node": "Rechercher les mails",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Rechercher les mails": {
+        "main": [
+          [
+            {
+              "node": "Filtrer les mails déjà labellisés",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Boucle sur chaque mail": {
+        "main": [
+          [
+            {
+              "node": "Terminé",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Extraire les pièces jointes images",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extraire les pièces jointes images": {
+        "main": [
+          [
+            {
+              "node": "A une image ?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "A une image ?": {
+        "main": [
+          [
+            {
+              "node": "Construire le corps multipart",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Fusionner les textes",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "Construire le corps multipart": {
+        "main": [
+          [
+            {
+              "node": "Envoyer à Drive (OCR)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Envoyer à Drive (OCR)": {
+        "main": [
+          [
+            {
+              "node": "Exporter le texte (Drive)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Exporter le texte (Drive)": {
+        "main": [
+          [
+            {
+              "node": "Supprimer le fichier temporaire",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Supprimer le fichier temporaire": {
+        "main": [
+          [
+            {
+              "node": "Réassembler le texte extrait",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Réassembler le texte extrait": {
+        "main": [
+          [
+            {
+              "node": "Fusionner les textes",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fusionner les textes": {
+        "main": [
+          [
+            {
+              "node": "Déterminer la ville et construire la tâche",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Déterminer la ville et construire la tâche": {
+        "main": [
+          [
+            {
+              "node": "Créer la tâche Google Tasks",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Créer la tâche Google Tasks": {
+        "main": [
+          [
+            {
+              "node": "Marquer le mail comme traité",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Marquer le mail comme traité": {
+        "main": [
+          [
+            {
+              "node": "Archiver le mail (retirer INBOX)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Archiver le mail (retirer INBOX)": {
+        "main": [
+          [
+            {
+              "node": "Boucle sur chaque mail",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Filtrer les mails déjà labellisés": {
+        "main": [
+          [
+            {
+              "node": "Boucle sur chaque mail",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "binaryMode": "separate",
+      "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": {
+      "templateCredsSetupCompleted": true
+    },
+    "pinData": {},
+    "versionId": "f0ef2b04-58b1-45e3-8876-99b370722ed4",
+    "activeVersionId": "f0ef2b04-58b1-45e3-8876-99b370722ed4",
+    "versionCounter": 36,
+    "triggerCount": 1,
+    "tags": [],
+    "shared": [
+      {
+        "updatedAt": "2026-09-07T20:10:37.646Z",
+        "createdAt": "2026-09-07T20:10:37.646Z",
+        "role": "workflow:owner",
+        "workflowId": "eo76fWYmOCu66GwPy4_Gh",
+        "projectId": "0JhxFsTzO9CFk8lC",
+        "project": {
+          "updatedAt": "2026-02-10T10:02:21.311Z",
+          "createdAt": "2026-02-10T09:56:38.849Z",
+          "id": "0JhxFsTzO9CFk8lC",
+          "name": "renaud Lacamoire <rlacamoire@gmail.com>",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "creatorId": "90c2e916-f191-4701-bb9b-0fd462632a9e"
+        }
+      }
+    ]
+  }
+]
