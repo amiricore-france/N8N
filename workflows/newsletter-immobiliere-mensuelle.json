@@ -5,7 +5,7 @@
     "nodes": [
       {
         "parameters": {
-          "content": "## Configuration requise avant activation\n\n1. **Anthropic (Claude + recherche web)** : créez un identifiant de type \"Header Auth\" (`x-api-key` = votre clé API Anthropic) et affectez-le au nœud \"Sélection et rédaction (Claude)\". Ce nœud utilise l’outil de recherche web intégré de Claude (`web_search`) : Claude trouve lui-même les articles, plus besoin de flux RSS. Vous pouvez restreindre les domaines de recherche via `allowed_domains` / `blocked_domains` dans le code du nœud \"Préparer le prompt\" si vous voulez privilégier certaines sources.\n2. **Historique des articles (anti-doublon)** : créez une Google Sheet avec au moins les colonnes `url` et `date`, partagez-la avec votre compte Google, créez un identifiant Google Sheets OAuth2, puis renseignez l’ID du fichier dans les nœuds \"Lire historique\" et \"Enregistrer les articles utilisés\".\n3. **Google Docs** : réutilise l’identifiant \"Google Docs account\" déjà configuré dans ce n8n.\n4. **Blocs récurrents** : mettez à jour les textes \"apporteur d’affaires\" et \"recrutement\" dans le nœud \"Blocs récurrents\" dès que votre dispositif change.\n5. **Fréquence** : ajustez le jour/l’heure dans \"Déclencheur mensuel\" (par défaut : le 25 du mois à 8h).\n6. **Étape finale volontairement manuelle** : ce workflow s’arrête à un brouillon Google Doc + une notification email. Une fois relu/ajusté, copiez le contenu final dans le module newsletter de votre CRM et lancez l’envoi vous-même.\n7. Activez le workflow une fois tout configuré.",
+          "content": "## Configuration requise avant activation\n\n1. **Anthropic (Claude + recherche web)** : créez un identifiant de type \"Header Auth\" (`x-api-key` = votre clé API Anthropic) et affectez-le au nœud \"Sélection et rédaction (Claude)\". Ce nœud utilise l’outil de recherche web intégré de Claude (`web_search`) : Claude trouve lui-même les articles, plus besoin de flux RSS. Vous pouvez restreindre les domaines de recherche via `allowed_domains` / `blocked_domains` dans le code du nœud \"Préparer le prompt\" si vous voulez privilégier certaines sources.\n2. **Historique des articles (anti-doublon)** : le fichier `historique_articles_newsletter` (dossier Drive \"IA\" du compte rlacamoire@efficity.com) est déjà référencé dans les nœuds \"Lire historique\" et \"Enregistrer les articles utilisés\" (1er onglet). Il est actuellement vide : ajoutez juste une ligne d’en-tête avec les colonnes `url` et `date` avant la première exécution. Créez aussi un identifiant Google Sheets OAuth2 (compte rlacamoire@efficity.com) et affectez-le à ces deux nœuds.\n3. **Google Docs** : réutilise l’identifiant \"Google Docs account\" déjà configuré dans ce n8n.\n4. **Blocs récurrents** : mettez à jour les textes \"apporteur d’affaires\" et \"recrutement\" dans le nœud \"Blocs récurrents\" dès que votre dispositif change.\n5. **Fréquence** : ajustez le jour/l’heure dans \"Déclencheur mensuel\" (par défaut : le 25 du mois à 8h).\n6. **Étape finale volontairement manuelle** : ce workflow s’arrête à un brouillon Google Doc + une notification email. Une fois relu/ajusté, copiez le contenu final dans le module newsletter de votre CRM et lancez l’envoi vous-même.\n7. Activez le workflow une fois tout configuré.",
           "height": 620,
           "width": 480,
           "color": 5
@@ -38,14 +38,15 @@
           "operation": "read",
           "documentId": {
             "__rl": true,
-            "value": "REMPLACER_ID_GOOGLE_SHEET",
-            "mode": "id"
+            "value": "1APvcEyO0lWfrTFpCDrBZ-euPxKN5vqKlOdTvcyjOF_w",
+            "mode": "id",
+            "cachedResultName": "historique_articles_newsletter"
           },
           "sheetName": {
             "__rl": true,
-            "value": "Historique",
-            "mode": "list",
-            "cachedResultName": "Historique"
+            "value": "0",
+            "mode": "id",
+            "cachedResultName": "Premier onglet (gid=0)"
           },
           "options": {}
         },
@@ -217,14 +218,15 @@
           "operation": "append",
           "documentId": {
             "__rl": true,
-            "value": "REMPLACER_ID_GOOGLE_SHEET",
-            "mode": "id"
+            "value": "1APvcEyO0lWfrTFpCDrBZ-euPxKN5vqKlOdTvcyjOF_w",
+            "mode": "id",
+            "cachedResultName": "historique_articles_newsletter"
           },
           "sheetName": {
             "__rl": true,
-            "value": "Historique",
-            "mode": "list",
-            "cachedResultName": "Historique"
+            "value": "0",
+            "mode": "id",
+            "cachedResultName": "Premier onglet (gid=0)"
           },
           "columns": {
             "mappingMode": "defineBelow",
