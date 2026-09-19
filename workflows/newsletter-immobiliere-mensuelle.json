@@ -5,8 +5,8 @@
     "nodes": [
       {
         "parameters": {
-          "content": "## Configuration requise avant activation\n\n1. **Sources RSS** : dans les 4 nœuds \"RSS - ...\", remplacez l’URL d’exemple par vos flux réels (dupliquez le nœud + le nœud \"Tag catégorie\" si vous voulez plusieurs sources par thème).\n2. **Anthropic (Claude)** : créez un identifiant de type \"Header Auth\" (`x-api-key` = votre clé API Anthropic) et affectez-le au nœud \"Sélection et rédaction (Claude)\". Vérifiez aussi le nom du modèle dans le code du nœud \"Préparer le prompt\".\n3. **Historique des articles (anti-doublon)** : créez une Google Sheet avec au moins les colonnes `url` et `date`, partagez-la avec votre compte Google, créez un identifiant Google Sheets OAuth2, puis renseignez l’ID du fichier dans les nœuds \"Lire historique\" et \"Enregistrer les articles utilisés\".\n4. **Google Docs** : réutilise l’identifiant \"Google Docs account\" déjà configuré dans ce n8n (mêmes droits que le workflow Screenshots).\n5. **Blocs récurrents** : mettez à jour les textes \"apporteur d’affaires\" et \"recrutement\" dans le nœud \"Blocs récurrents\" dès que votre dispositif change.\n6. **Fréquence** : ajustez le jour/l’heure dans \"Déclencheur mensuel\" (par défaut : le 25 du mois à 8h, pour laisser le temps de relire avant le 1er).\n7. **Étape finale volontairement manuelle** : ce workflow s’arrête à un brouillon Google Doc + une notification email. Une fois relu/ajusté, copiez le contenu final dans le module newsletter de votre CRM et lancez l’envoi vous-même depuis là-bas.\n8. Activez le workflow une fois tout configuré.",
-          "height": 640,
+          "content": "## Configuration requise avant activation\n\n1. **Anthropic (Claude + recherche web)** : créez un identifiant de type \"Header Auth\" (`x-api-key` = votre clé API Anthropic) et affectez-le au nœud \"Sélection et rédaction (Claude)\". Ce nœud utilise l’outil de recherche web intégré de Claude (`web_search`) : Claude trouve lui-même les articles, plus besoin de flux RSS. Vous pouvez restreindre les domaines de recherche via `allowed_domains` / `blocked_domains` dans le code du nœud \"Préparer le prompt\" si vous voulez privilégier certaines sources.\n2. **Historique des articles (anti-doublon)** : créez une Google Sheet avec au moins les colonnes `url` et `date`, partagez-la avec votre compte Google, créez un identifiant Google Sheets OAuth2, puis renseignez l’ID du fichier dans les nœuds \"Lire historique\" et \"Enregistrer les articles utilisés\".\n3. **Google Docs** : réutilise l’identifiant \"Google Docs account\" déjà configuré dans ce n8n.\n4. **Blocs récurrents** : mettez à jour les textes \"apporteur d’affaires\" et \"recrutement\" dans le nœud \"Blocs récurrents\" dès que votre dispositif change.\n5. **Fréquence** : ajustez le jour/l’heure dans \"Déclencheur mensuel\" (par défaut : le 25 du mois à 8h).\n6. **Étape finale volontairement manuelle** : ce workflow s’arrête à un brouillon Google Doc + une notification email. Une fois relu/ajusté, copiez le contenu final dans le module newsletter de votre CRM et lancez l’envoi vous-même.\n7. Activez le workflow une fois tout configuré.",
+          "height": 620,
           "width": 480,
           "color": 5
         },
@@ -35,96 +35,6 @@
       },
       {
         "parameters": {
-          "url": "https://REMPLACER-PAR-VOTRE-FLUX-ECO.fr/rss"
-        },
-        "id": "rss-economie",
-        "name": "RSS - Économie & taux",
-        "type": "n8n-nodes-base.rssFeedRead",
-        "typeVersion": 1.1,
-        "position": [240, -160]
-      },
-      {
-        "parameters": {
-          "jsCode": "const items = $input.all();\nreturn items.map(item => ({\n  json: {\n    category: 'economie',\n    categoryLabel: 'Économie & marché',\n    title: item.json.title || '',\n    link: item.json.link || '',\n    contentSnippet: item.json.contentSnippet || item.json.content || '',\n    pubDate: item.json.pubDate || item.json.isoDate || '',\n  },\n}));"
-        },
-        "id": "tag-economie",
-        "name": "Tag catégorie - Économie",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [460, -160]
-      },
-      {
-        "parameters": {
-          "url": "https://REMPLACER-PAR-VOTRE-FLUX-REGLEMENTATION.fr/rss"
-        },
-        "id": "rss-reglementation",
-        "name": "RSS - Réglementation",
-        "type": "n8n-nodes-base.rssFeedRead",
-        "typeVersion": 1.1,
-        "position": [240, 40]
-      },
-      {
-        "parameters": {
-          "jsCode": "const items = $input.all();\nreturn items.map(item => ({\n  json: {\n    category: 'reglementation',\n    categoryLabel: 'Réglementation',\n    title: item.json.title || '',\n    link: item.json.link || '',\n    contentSnippet: item.json.contentSnippet || item.json.content || '',\n    pubDate: item.json.pubDate || item.json.isoDate || '',\n  },\n}));"
-        },
-        "id": "tag-reglementation",
-        "name": "Tag catégorie - Réglementation",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [460, 40]
-      },
-      {
-        "parameters": {
-          "url": "https://REMPLACER-PAR-VOTRE-FLUX-AMENAGEMENT.fr/rss"
-        },
-        "id": "rss-amenagement",
-        "name": "RSS - Aménagement & travaux",
-        "type": "n8n-nodes-base.rssFeedRead",
-        "typeVersion": 1.1,
-        "position": [240, 240]
-      },
-      {
-        "parameters": {
-          "jsCode": "const items = $input.all();\nreturn items.map(item => ({\n  json: {\n    category: 'amenagement',\n    categoryLabel: 'Aménagement & travaux',\n    title: item.json.title || '',\n    link: item.json.link || '',\n    contentSnippet: item.json.contentSnippet || item.json.content || '',\n    pubDate: item.json.pubDate || item.json.isoDate || '',\n  },\n}));"
-        },
-        "id": "tag-amenagement",
-        "name": "Tag catégorie - Aménagement",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [460, 240]
-      },
-      {
-        "parameters": {
-          "url": "https://REMPLACER-PAR-VOTRE-FLUX-CONFORT-THERMIQUE.fr/rss"
-        },
-        "id": "rss-confort",
-        "name": "RSS - Confort thermique",
-        "type": "n8n-nodes-base.rssFeedRead",
-        "typeVersion": 1.1,
-        "position": [240, 440]
-      },
-      {
-        "parameters": {
-          "jsCode": "const items = $input.all();\nreturn items.map(item => ({\n  json: {\n    category: 'confort_thermique',\n    categoryLabel: 'Confort thermique',\n    title: item.json.title || '',\n    link: item.json.link || '',\n    contentSnippet: item.json.contentSnippet || item.json.content || '',\n    pubDate: item.json.pubDate || item.json.isoDate || '',\n  },\n}));"
-        },
-        "id": "tag-confort",
-        "name": "Tag catégorie - Confort thermique",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [460, 440]
-      },
-      {
-        "parameters": {
-          "numberInputs": 4
-        },
-        "id": "merge-articles",
-        "name": "Fusionner les articles",
-        "type": "n8n-nodes-base.merge",
-        "typeVersion": 3.2,
-        "position": [700, 140]
-      },
-      {
-        "parameters": {
           "operation": "read",
           "documentId": {
             "__rl": true,
@@ -143,7 +53,7 @@
         "name": "Lire historique",
         "type": "n8n-nodes-base.googleSheets",
         "typeVersion": 4.5,
-        "position": [240, 660]
+        "position": [240, 380]
       },
       {
         "parameters": {
@@ -169,27 +79,17 @@
         "name": "Blocs récurrents",
         "type": "n8n-nodes-base.set",
         "typeVersion": 3.4,
-        "position": [240, 860]
+        "position": [240, 560]
       },
       {
         "parameters": {
-          "jsCode": "const usedUrls = new Set(\n  $('Lire historique').all().map(item => (item.json.url || '').trim())\n);\n\nconst nouveaux = $input.all().filter(item => !usedUrls.has((item.json.link || '').trim()));\n\nnouveaux.sort((a, b) => new Date(b.json.pubDate || 0) - new Date(a.json.pubDate || 0));\n\nreturn nouveaux.slice(0, 20);"
-        },
-        "id": "code-filtrer-nouveaux",
-        "name": "Filtrer les nouveaux articles",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [940, 140]
-      },
-      {
-        "parameters": {
-          "jsCode": "const articles = $input.all().map(item => item.json);\nconst blocs = $('Blocs récurrents').first().json;\n\nconst now = new Date();\nconst moisAnnee = now.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'Europe/Paris' });\n\nconst systemPrompt = \"Tu es le redacteur de la newsletter mensuelle d’un professionnel de l’immobilier (agent, plus un reseau d’apporteurs et de consultants). Tu selectionnes les meilleurs articles par theme et rediges une synthese courte, factuelle, sans jargon, avec un ton professionnel et chaleureux, destinee a des particuliers proprietaires ou vendeurs. Reponds UNIQUEMENT avec un objet JSON valide, sans texte autour, au format exact suivant : {\\\"sections\\\":[{\\\"category\\\":\\\"...\\\",\\\"categoryLabel\\\":\\\"...\\\",\\\"titre\\\":\\\"...\\\",\\\"synthese\\\":\\\"...\\\",\\\"source_url\\\":\\\"...\\\"}],\\\"intro_apporteur\\\":\\\"...\\\",\\\"intro_recrutement\\\":\\\"...\\\"}. Choisis au maximum 1 a 2 articles par categorie parmi ceux fournis, uniquement s’ils sont pertinents. intro_apporteur et intro_recrutement sont une phrase d’accroche originale et renouvelee, qui introduit les blocs fixes fournis ci-dessous sans en changer le fond.\";\n\nconst userPrompt = JSON.stringify({\n  mois: moisAnnee,\n  articles_disponibles: articles,\n  bloc_apporteur_existant: blocs.texte_apporteur,\n  bloc_recrutement_existant: blocs.texte_recrutement,\n});\n\nreturn [{\n  json: {\n    moisAnnee,\n    claudeRequestBody: {\n      model: 'claude-sonnet-4-5',\n      max_tokens: 4000,\n      system: systemPrompt,\n      messages: [\n        { role: 'user', content: userPrompt },\n      ],\n    },\n  },\n}];"
+          "jsCode": "const blocs = $('Blocs récurrents').first().json;\nconst excludedUrls = $('Lire historique').all().map(item => (item.json.url || '').trim()).filter(Boolean);\n\nconst now = new Date();\nconst moisAnnee = now.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'Europe/Paris' });\n\nconst systemPrompt = \"Tu es le redacteur de la newsletter mensuelle d’un professionnel de l’immobilier francais (agent, plus un reseau d’apporteurs d’affaires et de consultants). Utilise l’outil de recherche web pour trouver, pour CHACUN des 4 themes suivants, 1 a 2 articles recents (de preference des dernieres semaines), fiables et en francais : (1) economie et taux d’interet / marche immobilier, (2) reglementation immobiliere (lois, fiscalite, diagnostics...), (3) amenagement et travaux, (4) confort thermique et energie dans le logement. Privilegie des sources serieuses (presse specialisee, sites institutionnels, notaires, ADEME, etc.). Ne propose jamais une URL presente dans cette liste deja utilisee : \" + JSON.stringify(excludedUrls) + \". Une fois tes recherches terminees, termine ta reponse par UNIQUEMENT un objet JSON valide (rien avant, rien apres), au format exact : {\\\"sections\\\":[{\\\"category\\\":\\\"...\\\",\\\"categoryLabel\\\":\\\"...\\\",\\\"titre\\\":\\\"...\\\",\\\"synthese\\\":\\\"...\\\",\\\"source_url\\\":\\\"...\\\"}],\\\"intro_apporteur\\\":\\\"...\\\",\\\"intro_recrutement\\\":\\\"...\\\"}. Chaque synthese fait 3 a 5 phrases, ton professionnel et chaleureux, sans jargon, destinee a des particuliers proprietaires ou vendeurs. intro_apporteur et intro_recrutement sont une phrase d’accroche originale et renouvelee introduisant les blocs fixes fournis ci-dessous, sans en changer le fond.\";\n\nconst userPrompt = \"Mois de la newsletter : \" + moisAnnee + \".\\nBloc apporteur d’affaires existant : \" + blocs.texte_apporteur + \"\\nBloc recrutement existant : \" + blocs.texte_recrutement;\n\nreturn [{\n  json: {\n    moisAnnee,\n    claudeRequestBody: {\n      model: 'claude-opus-5',\n      max_tokens: 8000,\n      system: systemPrompt,\n      tools: [\n        {\n          type: 'web_search_20260209',\n          name: 'web_search',\n          max_uses: 8,\n        },\n      ],\n      messages: [\n        { role: 'user', content: userPrompt },\n      ],\n    },\n  },\n}];"
         },
         "id": "code-preparer-prompt",
         "name": "Préparer le prompt",
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
-        "position": [1160, 140]
+        "position": [460, 200]
       },
       {
         "parameters": {
@@ -207,23 +107,25 @@
           "sendBody": true,
           "specifyBody": "json",
           "jsonBody": "={{ $json.claudeRequestBody }}",
-          "options": {}
+          "options": {
+            "timeout": 180000
+          }
         },
         "id": "http-claude",
         "name": "Sélection et rédaction (Claude)",
         "type": "n8n-nodes-base.httpRequest",
         "typeVersion": 4.2,
-        "position": [1380, 140]
+        "position": [680, 200]
       },
       {
         "parameters": {
-          "jsCode": "const raw = ($json.content && $json.content[0] && $json.content[0].text) || '';\nconst cleaned = raw.trim().replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();\n\nlet data;\ntry {\n  data = JSON.parse(cleaned);\n} catch (e) {\n  throw new Error('Reponse Claude non parseable en JSON : ' + raw);\n}\n\nreturn [{ json: data }];"
+          "jsCode": "const blocks = $json.content || [];\nconst textBlocks = blocks.filter(b => b.type === 'text');\nconst raw = textBlocks.length ? textBlocks[textBlocks.length - 1].text : '';\nconst cleaned = raw.trim().replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();\n\nlet data;\ntry {\n  data = JSON.parse(cleaned);\n} catch (e) {\n  throw new Error('Reponse Claude non parseable en JSON : ' + raw);\n}\n\nreturn [{ json: data }];"
         },
         "id": "code-extraire-reponse",
         "name": "Extraire la réponse Claude",
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
-        "position": [1600, 140]
+        "position": [900, 200]
       },
       {
         "parameters": {
@@ -233,7 +135,7 @@
         "name": "Construire le contenu final",
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
-        "position": [1820, 140]
+        "position": [1120, 200]
       },
       {
         "parameters": {
@@ -250,7 +152,7 @@
         "name": "Créer le document Google Docs",
         "type": "n8n-nodes-base.httpRequest",
         "typeVersion": 4.2,
-        "position": [2040, 0],
+        "position": [1340, 60],
         "credentials": {
           "googleDocsOAuth2Api": {
             "id": "1AAmuRuThKsI9qSH",
@@ -273,7 +175,7 @@
         "name": "Insérer le contenu",
         "type": "n8n-nodes-base.httpRequest",
         "typeVersion": 4.2,
-        "position": [2260, 0],
+        "position": [1560, 60],
         "credentials": {
           "googleDocsOAuth2Api": {
             "id": "1AAmuRuThKsI9qSH",
@@ -292,7 +194,7 @@
         "name": "Notifier - brouillon prêt",
         "type": "n8n-nodes-base.gmail",
         "typeVersion": 2.2,
-        "position": [2480, 0],
+        "position": [1780, 60],
         "credentials": {
           "gmailOAuth2": {
             "id": "8BNQqaBRp2Qdn3yz",
@@ -308,7 +210,7 @@
         "name": "Préparer les lignes historique",
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
-        "position": [2040, 280]
+        "position": [1340, 340]
       },
       {
         "parameters": {
@@ -337,51 +239,18 @@
         "name": "Enregistrer les articles utilisés",
         "type": "n8n-nodes-base.googleSheets",
         "typeVersion": 4.5,
-        "position": [2260, 280]
+        "position": [1560, 340]
       }
     ],
     "connections": {
       "Déclencheur mensuel": {
         "main": [
           [
-            { "node": "RSS - Économie & taux", "type": "main", "index": 0 },
-            { "node": "RSS - Réglementation", "type": "main", "index": 0 },
-            { "node": "RSS - Aménagement & travaux", "type": "main", "index": 0 },
-            { "node": "RSS - Confort thermique", "type": "main", "index": 0 },
             { "node": "Lire historique", "type": "main", "index": 0 },
-            { "node": "Blocs récurrents", "type": "main", "index": 0 }
+            { "node": "Blocs récurrents", "type": "main", "index": 0 },
+            { "node": "Préparer le prompt", "type": "main", "index": 0 }
           ]
         ]
-      },
-      "RSS - Économie & taux": {
-        "main": [[ { "node": "Tag catégorie - Économie", "type": "main", "index": 0 } ]]
-      },
-      "Tag catégorie - Économie": {
-        "main": [[ { "node": "Fusionner les articles", "type": "main", "index": 0 } ]]
-      },
-      "RSS - Réglementation": {
-        "main": [[ { "node": "Tag catégorie - Réglementation", "type": "main", "index": 0 } ]]
-      },
-      "Tag catégorie - Réglementation": {
-        "main": [[ { "node": "Fusionner les articles", "type": "main", "index": 1 } ]]
-      },
-      "RSS - Aménagement & travaux": {
-        "main": [[ { "node": "Tag catégorie - Aménagement", "type": "main", "index": 0 } ]]
-      },
-      "Tag catégorie - Aménagement": {
-        "main": [[ { "node": "Fusionner les articles", "type": "main", "index": 2 } ]]
-      },
-      "RSS - Confort thermique": {
-        "main": [[ { "node": "Tag catégorie - Confort thermique", "type": "main", "index": 0 } ]]
-      },
-      "Tag catégorie - Confort thermique": {
-        "main": [[ { "node": "Fusionner les articles", "type": "main", "index": 3 } ]]
-      },
-      "Fusionner les articles": {
-        "main": [[ { "node": "Filtrer les nouveaux articles", "type": "main", "index": 0 } ]]
-      },
-      "Filtrer les nouveaux articles": {
-        "main": [[ { "node": "Préparer le prompt", "type": "main", "index": 0 } ]]
       },
       "Préparer le prompt": {
         "main": [[ { "node": "Sélection et rédaction (Claude)", "type": "main", "index": 0 } ]]
