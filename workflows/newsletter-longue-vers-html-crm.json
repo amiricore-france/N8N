@@ -1,0 +1,578 @@
+[
+  {
+    "updatedAt": "2026-09-20T20:46:14.568Z",
+    "createdAt": "2026-09-20T20:46:14.568Z",
+    "id": "NysZNm2MEOg8EJAk",
+    "name": "Newsletter longue → HTML CRM",
+    "description": null,
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "content": "## Newsletter longue → HTML CRM\n\nConvertit en HTML (aux couleurs effiCity) la newsletter du mois en cours, déjà générée sous forme de Google Doc dans le dossier Drive **Newsletters**, et enregistre le résultat dans ce même dossier, prêt à être collé comme modèle d'email dans le CRM.\n\n1. **Déclenchement manuel volontaire** : exécutez ce workflow une fois que le Doc du mois a été relu/ajusté dans Drive.\n2. Recherche automatiquement le Doc du mois en cours (titre contenant « immobilière - <mois annee> ») dans le dossier Newsletters.\n3. Relit son contenu via l'API Google Docs, en extrait les articles (groupés par thème) et les deux blocs « apporteur d'affaires » / « rejoindre l'équipe ».\n4. Un appel Claude met en forme (HTML, gras sur le chiffre clé, liens) les deux blocs CTA avec le même niveau de finition qu'une mise en forme manuelle.\n5. Assemble le HTML final (même gabarit que les versions validées ce mois-ci) et l'enregistre dans Newsletters sous le nom « Newsletter immobilière - <mois annee> (HTML email).html » — remplace le fichier s'il existe déjà pour ce mois (ré-exécution sans risque de doublon).\n6. Réutilise les identifiants déjà configurés (Google Docs account, Anthropic API) — aucune configuration supplémentaire nécessaire.\n7. Repere restant à compléter manuellement dans le HTML généré : le numéro de téléphone en pied de page.",
+          "height": 460,
+          "width": 480,
+          "color": 5
+        },
+        "id": "sticky-config-notes",
+        "name": "Notes de configuration",
+        "type": "n8n-nodes-base.stickyNote",
+        "typeVersion": 1,
+        "position": [
+          -200,
+          -420
+        ]
+      },
+      {
+        "parameters": {},
+        "id": "trigger-manual",
+        "name": "Déclenchement manuel",
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [
+          0,
+          200
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const now = new Date();\nconst moisAnnee = now.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'Europe/Paris' });\nconst moisAnneeCap = moisAnnee.charAt(0).toUpperCase() + moisAnnee.slice(1);\n\nreturn [{\n  json: {\n    moisAnnee,\n    moisAnneeCap,\n    docTitleQuery: \"immobilière - \" + moisAnnee,\n    outputFileName: \"Newsletter immobilière - \" + moisAnnee + ' (HTML email).html',\n    heroTitle: \"Le tour d'horizon du mois\",\n    heroSubtitle: \"Taux, fiscalité, travaux et confort thermique : les actualités du mois, sélectionnées et expliquées pour vous.\"\n  }\n}];\n"
+        },
+        "id": "code-preparer-recherche",
+        "name": "Préparer la recherche",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          220,
+          200
+        ]
+      },
+      {
+        "parameters": {
+          "method": "GET",
+          "url": "https://www.googleapis.com/drive/v3/files",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googleDocsOAuth2Api",
+          "sendQuery": true,
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "q",
+                "value": "={{ \"'16hMn7sp1q0OfsKPPPl_HPfZqM25QQ9JH' in parents and mimeType = 'application/vnd.google-apps.document' and name contains '\" + $json.docTitleQuery + \"'\" }}"
+              },
+              {
+                "name": "fields",
+                "value": "files(id,name)"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "http-chercher-doc",
+        "name": "Chercher le Doc source",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          440,
+          200
+        ],
+        "credentials": {
+          "googleDocsOAuth2Api": {
+            "id": "1AAmuRuThKsI9qSH",
+            "name": "Google Docs account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const res = $json;\nconst files = res.files || [];\nconst prep = $('Préparer la recherche').first().json;\nif (files.length === 0) {\n  throw new Error(\"Aucun document newsletter trouvé pour \" + prep.moisAnnee + \". Vérifiez qu'il existe dans le dossier Newsletters avec le bon titre.\");\n}\nreturn [{ json: { documentId: files[0].id, documentName: files[0].name } }];\n"
+        },
+        "id": "code-verifier-doc",
+        "name": "Vérifier le Doc trouvé",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          660,
+          200
+        ]
+      },
+      {
+        "parameters": {
+          "method": "GET",
+          "url": "=https://docs.googleapis.com/v1/documents/{{ $json.documentId }}",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googleDocsOAuth2Api",
+          "options": {}
+        },
+        "id": "http-lire-doc",
+        "name": "Lire le contenu du Doc",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          880,
+          200
+        ],
+        "credentials": {
+          "googleDocsOAuth2Api": {
+            "id": "1AAmuRuThKsI9qSH",
+            "name": "Google Docs account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const doc = $json;\nconst content = (doc.body && doc.body.content) ? doc.body.content : [];\nconst paragraphs = [];\nfor (const el of content) {\n  if (!el.paragraph) continue;\n  const text = (el.paragraph.elements || [])\n    .map(e => (e.textRun && e.textRun.content) || '')\n    .join('')\n    .replace(/\\n$/, '');\n  paragraphs.push(text);\n}\n\nconst isHeader = (s) => /^—\\s.+\\s—$/.test(s.trim());\nconst headerIdx = [];\nparagraphs.forEach((p, i) => { if (isHeader(p)) headerIdx.push(i); });\n\nlet apporteurPos = -1, recrutementPos = -1;\nheaderIdx.forEach(i => {\n  const up = paragraphs[i].toUpperCase();\n  if (up.indexOf('APPORTEUR') !== -1) apporteurPos = i;\n  if (up.indexOf('REJOINDRE') !== -1 || up.indexOf('EQUIPE') !== -1 || up.indexOf('ÉQUIPE') !== -1) recrutementPos = i;\n});\n\nconst articleHeaderIdx = headerIdx.filter(i => i !== apporteurPos && i !== recrutementPos);\n\nconst sections = [];\nfor (let k = 0; k < articleHeaderIdx.length; k++) {\n  const hIdx = articleHeaderIdx[k];\n  let nextIdx;\n  if (k + 1 < articleHeaderIdx.length) nextIdx = articleHeaderIdx[k + 1];\n  else if (apporteurPos !== -1) nextIdx = apporteurPos;\n  else if (recrutementPos !== -1) nextIdx = recrutementPos;\n  else nextIdx = paragraphs.length;\n\n  const label = paragraphs[hIdx].replace(/^—\\s*/, '').replace(/\\s*—$/, '').trim();\n  const body = paragraphs.slice(hIdx + 1, nextIdx).filter(p => p !== '');\n  const titre = body[0] || '';\n  const synthese = body[1] || '';\n  const sourceLine = body.find(p => /^Source\\s*:/i.test(p)) || '';\n  const urlMatch = sourceLine.match(/https?:\\/\\/\\S+/);\n  const source_url = urlMatch ? urlMatch[0] : '';\n\n  let sec = sections.find(s => s.label === label);\n  if (!sec) { sec = { label, articles: [] }; sections.push(sec); }\n  sec.articles.push({ titre, synthese, source_url });\n}\n\nfunction parseCta(headerPos, endPos) {\n  if (headerPos === -1) return { intro: '', paragraphs: [] };\n  const raw = paragraphs.slice(headerPos + 1, endPos).filter(p => p !== '');\n  return { intro: raw[0] || '', paragraphs: raw.slice(1) };\n}\n\nconst apporteurEnd = recrutementPos !== -1 ? recrutementPos : paragraphs.length;\nconst apporteur = parseCta(apporteurPos, apporteurEnd);\nconst recrutement = parseCta(recrutementPos, paragraphs.length);\n\nif (sections.length === 0) {\n  throw new Error('Impossible de trouver des articles dans le document. Le format du document a-t-il changé ?');\n}\n\nreturn [{\n  json: {\n    titre_doc: paragraphs[0] || '',\n    sections,\n    apporteur,\n    recrutement\n  }\n}];\n"
+        },
+        "id": "code-extraire-structure",
+        "name": "Extraire la structure",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1100,
+          200
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const data = $json;\nconst apporteur = data.apporteur;\nconst recrutement = data.recrutement;\n\nconst systemPrompt = \"Tu mets en forme, en HTML pret pour un email, le contenu de deux encarts d'appel a l'action (CTA) pour la newsletter immobiliere d'un consultant effiCity. On te fournit pour chaque encart une introduction (une phrase d'accroche) et une liste de paragraphes de texte fournis par l'utilisateur, a respecter fidelement (ne jamais reformuler, raccourcir ou supprimer d'information).\\n\\nPour CHAQUE encart (apporteur et recrutement), produis un fragment HTML fait uniquement de balises <p> (et eventuellement <ul>/<li> si le texte contient une liste a puces introduite par des tirets), en respectant ces gabarits exacts :\\n- paragraphe normal : <p style=\\\"margin:0 0 10px 0;font-family:'Source Sans 3','Source Sans Pro',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.55;color:#3F444A;\\\">...</p>\\n- paragraphe contenant LE chiffre cle le plus marquant (pourcentage ou montant en euros), au plus un par encart : <p style=\\\"margin:0 0 10px 0;font-family:'Source Sans 3','Source Sans Pro',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.55;color:#23262A;font-weight:700;\\\">...</p>\\n- le DERNIER paragraphe de l'encart utilise margin:0 0 16px 0 au lieu de margin:0 0 10px 0\\n- liste a puces eventuelle : <ul style=\\\"margin:0 0 12px 0;padding:0 0 0 18px;font-family:'Source Sans 3','Source Sans Pro',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.6;color:#3F444A;\\\"><li>...</li></ul>\\n- si le texte mentionne explicitement un site web ou une adresse email, transforme cette mention en lien : <a href=\\\"https://exemple.com/\\\" style=\\\"color:#3B7A20;font-weight:700;text-decoration:none;\\\">exemple.com</a> (ajoute le protocole https:// s'il est absent). N'invente jamais d'URL non mentionnee dans le texte fourni.\\n\\nDetermine aussi, pour chaque encart, le lien principal du bouton d'action (button_href) : l'URL du site mentionne dans le texte si elle existe, sinon \\\"mailto:rlacamoire@efficity.com\\\". Choisis un intitule de bouton court et naturel (button_label), par exemple \\\"Devenir apporteur\\\" ou \\\"Nous rejoindre\\\".\\n\\nReponds UNIQUEMENT avec un objet JSON valide (rien avant, rien apres), au format exact :\\n{\\\"apporteur\\\":{\\\"heading\\\":\\\"Devenez apporteur d'affaires\\\",\\\"html\\\":\\\"...\\\",\\\"button_label\\\":\\\"...\\\",\\\"button_href\\\":\\\"...\\\"},\\\"recrutement\\\":{\\\"heading\\\":\\\"Rejoignez l'equipe\\\",\\\"html\\\":\\\"...\\\",\\\"button_label\\\":\\\"...\\\",\\\"button_href\\\":\\\"...\\\"}}\";\n\nconst userPrompt = \"Encart apporteur d'affaires :\\nIntroduction : \" + apporteur.intro + \"\\nTexte :\\n\" + apporteur.paragraphs.join('\\n\\n') +\n  \"\\n\\nEncart recrutement :\\nIntroduction : \" + recrutement.intro + \"\\nTexte :\\n\" + recrutement.paragraphs.join('\\n\\n');\n\nreturn [{\n  json: {\n    claudeRequestBody: {\n      model: 'claude-opus-5',\n      max_tokens: 3000,\n      system: systemPrompt,\n      messages: [\n        { role: 'user', content: userPrompt }\n      ]\n    }\n  }\n}];\n"
+        },
+        "id": "code-preparer-prompt-cta",
+        "name": "Préparer le prompt CTA",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1320,
+          200
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://api.anthropic.com/v1/messages",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ $json.claudeRequestBody }}",
+          "options": {
+            "timeout": 60000
+          }
+        },
+        "id": "http-cta-claude",
+        "name": "Mettre en forme les CTA (Claude)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1540,
+          200
+        ],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "XdnEskOS4aePTeR1",
+            "name": "Anthropic API (x-api-key)"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const blocks = $json.content || [];\nconst textBlocks = blocks.filter(b => b.type === 'text');\nconst raw = textBlocks.length ? textBlocks[textBlocks.length - 1].text : '';\nconst cleaned = raw.trim().replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();\n\nlet data;\ntry {\n  data = JSON.parse(cleaned);\n} catch (e) {\n  const firstBrace = cleaned.indexOf('{');\n  const lastBrace = cleaned.lastIndexOf('}');\n  if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) {\n    throw new Error('Reponse Claude non parseable en JSON : ' + raw);\n  }\n  try {\n    data = JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));\n  } catch (e2) {\n    throw new Error('Reponse Claude non parseable en JSON : ' + raw);\n  }\n}\n\nreturn [{ json: data }];\n"
+        },
+        "id": "code-extraire-cta",
+        "name": "Extraire la réponse CTA",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1760,
+          200
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const prep = $('Préparer la recherche').first().json;\nconst structure = $('Extraire la structure').first().json;\nconst cta = $json;\n\nfunction esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n\nlet sectionsHtml = '';\nstructure.sections.forEach((sec, secIdx) => {\n  if (secIdx > 0) {\n    sectionsHtml += '<tr><td class=\"px\" style=\"padding:32px 40px 0 40px;\"><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td style=\"border-top:2px solid #4C9A2A;font-size:1px;line-height:1px;\">&nbsp;</td></tr></table></td></tr>\\n';\n  }\n  sectionsHtml += '<tr><td class=\"px\" style=\"padding:20px 40px 0 40px;\"><p style=\"margin:0;font-family:\\'Source Sans 3\\',\\'Source Sans Pro\\',Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#4C9A2A;\">' + esc(sec.label) + '</p></td></tr>\\n';\n  sec.articles.forEach((art, artIdx) => {\n    const topPad = artIdx === 0 ? 14 : 20;\n    if (artIdx > 0) {\n      sectionsHtml += '<tr><td class=\"px\" style=\"padding:20px 40px 0 40px;\"><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td style=\"border-top:1px solid #E3E7E2;font-size:1px;line-height:1px;\">&nbsp;</td></tr></table></td></tr>\\n';\n    }\n    sectionsHtml += '<tr><td class=\"px\" style=\"padding:' + topPad + 'px 40px 0 40px;\">\\n  <h2 style=\"margin:0 0 8px 0;font-family:\\'Source Sans 3\\',\\'Source Sans Pro\\',Helvetica,Arial,sans-serif;font-size:17px;line-height:1.35;font-weight:700;color:#23262A;\">' + esc(art.titre) + '</h2>\\n  <p style=\"margin:0 0 10px 0;font-family:\\'Source Sans 3\\',\\'Source Sans Pro\\',Helvetica,Arial,sans-serif;font-size:14.5px;line-height:1.6;color:#3F444A;\">' + esc(art.synthese) + '</p>';\n    if (art.source_url) {\n      sectionsHtml += '\\n  <a href=\"' + esc(art.source_url) + '\" style=\"font-family:\\'Source Sans 3\\',\\'Source Sans Pro\\',Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;color:#3B7A20;text-decoration:none;\">Lire l\\'article&nbsp;&rarr;</a>';\n    }\n    sectionsHtml += '\\n</td></tr>\\n';\n  });\n});\n\nfunction ctaCardHtml(topPad, cardData) {\n  return '<tr><td class=\"px\" style=\"padding:' + topPad + 'px 40px 0 40px;\">\\n  <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color:#EAF4E4;\"><tr>\\n    <td style=\"border-left:3px solid #4C9A2A;padding:22px 24px;\">\\n      <h3 style=\"margin:0 0 10px 0;font-family:\\'Source Sans 3\\',\\'Source Sans Pro\\',Helvetica,Arial,sans-serif;font-size:16px;font-weight:700;color:#23262A;\">' + esc(cardData.heading) + '</h3>\\n      ' + cardData.html + '\\n      <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\"><tr><td style=\"background-color:#4C9A2A;\"><a href=\"' + esc(cardData.button_href) + '\" style=\"display:inline-block;padding:10px 20px;font-family:\\'Source Sans 3\\',\\'Source Sans Pro\\',Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;\">' + esc(cardData.button_label) + '</a></td></tr></table>\\n    </td>\\n  </tr></table>\\n</td></tr>\\n';\n}\n\nconst apporteurHtml = ctaCardHtml(36, cta.apporteur);\nconst recrutementHtml = ctaCardHtml(16, cta.recrutement);\n\nconst html = '<!doctype html>\\n<html lang=\"fr\">\\n<head>\\n<meta charset=\"utf-8\">\\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\\n<title>' + esc(prep.heroTitle) + ' — effiCity</title>\\n<link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap\">\\n<style>\\n  body{margin:0;padding:0;background-color:#EEF1EC;}\\n  table{border-collapse:collapse;}\\n  img{border:0;outline:none;text-decoration:none;display:block;}\\n  a{color:#3B7A20;}\\n  @media screen and (max-width:600px){\\n    .px{padding-left:24px !important;padding-right:24px !important;}\\n    .h1{font-size:21px !important;}\\n  }\\n</style>\\n</head>\\n<body>\\n<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color:#EEF1EC;\">\\n<tr><td align=\"center\" style=\"padding:24px 0;\">\\n<table role=\"presentation\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" style=\"max-width:600px;width:100%;background-color:#FFFFFF;\">\\n\\n<tr><td class=\"px\" style=\"padding:32px 40px 22px 40px;\">\\n  <img src=\"https://diszln7ft1ccx.cloudfront.net/img/layout/logos/logo-efficity.png\" width=\"140\" height=\"61\" alt=\"effiCity\">\\n</td></tr>\\n\\n<tr><td style=\"background-color:#4C9A2A;height:4px;line-height:4px;font-size:1px;\">&nbsp;</td></tr>\\n\\n<tr><td class=\"px\" style=\"padding:32px 40px 4px 40px;\">\\n  <p style=\"margin:0 0 10px 0;font-family:\\'Source Sans 3\\',\\'Source Sans Pro\\',Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#4C9A2A;\">Newsletter immobilière &middot; ' + esc(prep.moisAnneeCap) + '</p>\\n  <h1 class=\"h1\" style=\"margin:0 0 10px 0;font-family:\\'Source Sans 3\\',\\'Source Sans Pro\\',Helvetica,Arial,sans-serif;font-size:24px;line-height:1.3;font-weight:700;color:#23262A;\">' + esc(prep.heroTitle) + '</h1>\\n  <p style=\"margin:0;font-family:\\'Source Sans 3\\',\\'Source Sans Pro\\',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#6B7177;\">' + esc(prep.heroSubtitle) + '</p>\\n</td></tr>\\n\\n<tr><td class=\"px\" style=\"padding:28px 40px 0 40px;\"><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td style=\"border-top:2px solid #4C9A2A;font-size:1px;line-height:1px;\">&nbsp;</td></tr></table></td></tr>\\n\\n' + sectionsHtml + '\\n' + apporteurHtml + recrutementHtml + '\\n<tr><td class=\"px\" style=\"padding:40px 40px 32px 40px;background-color:#F6F8F6;margin-top:36px;\">\\n  <p style=\"margin:0 0 4px 0;font-family:\\'Source Sans 3\\',\\'Source Sans Pro\\',Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;color:#23262A;\">Renaud Lacamoire</p>\\n  <p style=\"margin:0 0 16px 0;font-family:\\'Source Sans 3\\',\\'Source Sans Pro\\',Helvetica,Arial,sans-serif;font-size:13px;color:#6B7177;\">Consultant immobilier effiCity &middot; <a href=\"mailto:rlacamoire@efficity.com\" style=\"color:#3B7A20;text-decoration:none;\">rlacamoire@efficity.com</a> &middot; [téléphone à compléter]</p>\\n  <p style=\"margin:0;font-family:\\'Source Sans 3\\',\\'Source Sans Pro\\',Helvetica,Arial,sans-serif;font-size:11px;line-height:1.5;color:#9AA0A5;\">Vous recevez cet email en tant que client ou prospect d\\'effiCity. <a href=\"#\" style=\"color:#9AA0A5;\">Se désinscrire</a></p>\\n</td></tr>\\n\\n</table>\\n</td></tr>\\n</table>\\n</body>\\n</html>';\n\nreturn [{ json: { html: html, outputFileName: prep.outputFileName, moisAnnee: prep.moisAnnee } }];\n"
+        },
+        "id": "code-construire-html",
+        "name": "Construire le HTML final",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1980,
+          200
+        ]
+      },
+      {
+        "parameters": {
+          "method": "GET",
+          "url": "https://www.googleapis.com/drive/v3/files",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googleDocsOAuth2Api",
+          "sendQuery": true,
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "q",
+                "value": "={{ \"'16hMn7sp1q0OfsKPPPl_HPfZqM25QQ9JH' in parents and name = '\" + $json.outputFileName + \"'\" }}"
+              },
+              {
+                "name": "fields",
+                "value": "files(id,name)"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "http-chercher-html-existant",
+        "name": "Chercher fichier HTML existant",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          2200,
+          200
+        ],
+        "credentials": {
+          "googleDocsOAuth2Api": {
+            "id": "1AAmuRuThKsI9qSH",
+            "name": "Google Docs account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "conditions": [
+              {
+                "id": "cond-fichier-existe",
+                "leftValue": "={{ $json.files.length }}",
+                "rightValue": 0,
+                "operator": {
+                  "type": "number",
+                  "operation": "gt"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "if-fichier-existant",
+        "name": "Fichier existant ?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          2420,
+          200
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "return [{ json: { fileId: $json.files[0].id } }];"
+        },
+        "id": "code-id-existant",
+        "name": "Utiliser l'id existant",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2640,
+          100
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://www.googleapis.com/drive/v3/files",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googleDocsOAuth2Api",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ { \"name\": $('Construire le HTML final').first().json.outputFileName, \"mimeType\": \"text/html\", \"parents\": [\"16hMn7sp1q0OfsKPPPl_HPfZqM25QQ9JH\"] } }}",
+          "options": {}
+        },
+        "id": "http-creer-fichier",
+        "name": "Créer le fichier (métadonnées)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          2640,
+          320
+        ],
+        "credentials": {
+          "googleDocsOAuth2Api": {
+            "id": "1AAmuRuThKsI9qSH",
+            "name": "Google Docs account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "return [{ json: { fileId: $json.id } }];"
+        },
+        "id": "code-id-nouveau",
+        "name": "Récupérer le nouvel id",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2860,
+          320
+        ]
+      },
+      {
+        "parameters": {
+          "method": "PATCH",
+          "url": "=https://www.googleapis.com/upload/drive/v3/files/{{ $json.fileId }}?uploadType=media",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googleDocsOAuth2Api",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "text/html"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "raw",
+          "rawContentType": "text/html",
+          "body": "={{ $('Construire le HTML final').first().json.html }}",
+          "options": {}
+        },
+        "id": "http-ecrire-contenu",
+        "name": "Écrire le contenu HTML",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          3080,
+          200
+        ],
+        "credentials": {
+          "googleDocsOAuth2Api": {
+            "id": "1AAmuRuThKsI9qSH",
+            "name": "Google Docs account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Déclenchement manuel": {
+        "main": [
+          [
+            {
+              "node": "Préparer la recherche",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Préparer la recherche": {
+        "main": [
+          [
+            {
+              "node": "Chercher le Doc source",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Chercher le Doc source": {
+        "main": [
+          [
+            {
+              "node": "Vérifier le Doc trouvé",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Vérifier le Doc trouvé": {
+        "main": [
+          [
+            {
+              "node": "Lire le contenu du Doc",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Lire le contenu du Doc": {
+        "main": [
+          [
+            {
+              "node": "Extraire la structure",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extraire la structure": {
+        "main": [
+          [
+            {
+              "node": "Préparer le prompt CTA",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Préparer le prompt CTA": {
+        "main": [
+          [
+            {
+              "node": "Mettre en forme les CTA (Claude)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Mettre en forme les CTA (Claude)": {
+        "main": [
+          [
+            {
+              "node": "Extraire la réponse CTA",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extraire la réponse CTA": {
+        "main": [
+          [
+            {
+              "node": "Construire le HTML final",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Construire le HTML final": {
+        "main": [
+          [
+            {
+              "node": "Chercher fichier HTML existant",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Chercher fichier HTML existant": {
+        "main": [
+          [
+            {
+              "node": "Fichier existant ?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fichier existant ?": {
+        "main": [
+          [
+            {
+              "node": "Utiliser l'id existant",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Créer le fichier (métadonnées)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Créer le fichier (métadonnées)": {
+        "main": [
+          [
+            {
+              "node": "Récupérer le nouvel id",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Utiliser l'id existant": {
+        "main": [
+          [
+            {
+              "node": "Écrire le contenu HTML",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Récupérer le nouvel id": {
+        "main": [
+          [
+            {
+              "node": "Écrire le contenu HTML",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": {},
+    "versionId": "89f64b47-d05a-48a2-8bec-d9c739ae2ece",
+    "activeVersionId": null,
+    "versionCounter": 1,
+    "triggerCount": 0,
+    "tags": [],
+    "shared": [
+      {
+        "updatedAt": "2026-09-20T20:46:14.597Z",
+        "createdAt": "2026-09-20T20:46:14.597Z",
+        "role": "workflow:owner",
+        "workflowId": "NysZNm2MEOg8EJAk",
+        "projectId": "0JhxFsTzO9CFk8lC",
+        "project": {
+          "updatedAt": "2026-02-10T10:02:21.311Z",
+          "createdAt": "2026-02-10T09:56:38.849Z",
+          "id": "0JhxFsTzO9CFk8lC",
+          "name": "renaud Lacamoire <rlacamoire@gmail.com>",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "creatorId": "90c2e916-f191-4701-bb9b-0fd462632a9e"
+        }
+      }
+    ]
+  }
+]
