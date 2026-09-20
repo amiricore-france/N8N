@@ -334,6 +334,32 @@
             "name": "Google Sheets account"
           }
         }
+      },
+      {
+        "parameters": {
+          "method": "PATCH",
+          "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.documentId }}?addParents=16hMn7sp1q0OfsKPPPl_HPfZqM25QQ9JH&removeParents=root&fields=id,parents",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googleDocsOAuth2Api",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ {} }}",
+          "options": {}
+        },
+        "id": "http-deplacer-doc-newsletters",
+        "name": "Déplacer vers Newsletters",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1564,
+          64
+        ],
+        "credentials": {
+          "googleDocsOAuth2Api": {
+            "id": "1AAmuRuThKsI9qSH",
+            "name": "Google Docs account"
+          }
+        }
       }
     ],
     "connections": {
@@ -401,7 +427,7 @@
         "main": [
           [
             {
-              "node": "Insérer le contenu",
+              "node": "Déplacer vers Newsletters",
               "type": "main",
               "index": 0
             }
@@ -451,6 +477,17 @@
             }
           ]
         ]
+      },
+      "Déplacer vers Newsletters": {
+        "main": [
+          [
+            {
+              "node": "Insérer le contenu",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
       }
     },
     "settings": {
@@ -459,9 +496,9 @@
     "staticData": null,
     "meta": null,
     "pinData": {},
-    "versionId": "a65b1d50-3f4d-439f-8159-4a60294a90e7",
+    "versionId": "17e2385b-becb-4141-bd17-6520a6940d82",
     "activeVersionId": null,
-    "versionCounter": 1,
+    "versionCounter": 2,
     "triggerCount": 0,
     "tags": [],
     "shared": [

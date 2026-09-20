@@ -1,6 +1,6 @@
 [
   {
-    "updatedAt": "2026-09-19T21:36:23.085Z",
+    "updatedAt": "2026-09-20T09:52:33.865Z",
     "createdAt": "2026-09-19T18:54:29.980Z",
     "id": "zNJeWM5vxdW9ttjq",
     "name": "Newsletter immobilière mensuelle (brouillon auto, envoi manuel)",
@@ -334,6 +334,32 @@
             "name": "Google Sheets account"
           }
         }
+      },
+      {
+        "parameters": {
+          "method": "PATCH",
+          "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.documentId }}?addParents=16hMn7sp1q0OfsKPPPl_HPfZqM25QQ9JH&removeParents=root&fields=id,parents",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googleDocsOAuth2Api",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ {} }}",
+          "options": {}
+        },
+        "id": "http-deplacer-doc-newsletters",
+        "name": "Déplacer vers Newsletters",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1568,
+          64
+        ],
+        "credentials": {
+          "googleDocsOAuth2Api": {
+            "id": "1AAmuRuThKsI9qSH",
+            "name": "Google Docs account"
+          }
+        }
       }
     ],
     "connections": {
@@ -401,7 +427,7 @@
         "main": [
           [
             {
-              "node": "Insérer le contenu",
+              "node": "Déplacer vers Newsletters",
               "type": "main",
               "index": 0
             }
@@ -451,6 +477,17 @@
             }
           ]
         ]
+      },
+      "Déplacer vers Newsletters": {
+        "main": [
+          [
+            {
+              "node": "Insérer le contenu",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
       }
     },
     "settings": {
@@ -461,9 +498,9 @@
       "templateCredsSetupCompleted": true
     },
     "pinData": {},
-    "versionId": "f3b02ffb-44d8-4a72-ade4-75336d9eb278",
+    "versionId": "71803993-e383-4709-9c08-f2b62e1cd701",
     "activeVersionId": null,
-    "versionCounter": 7,
+    "versionCounter": 12,
     "triggerCount": 0,
     "tags": [],
     "shared": [
