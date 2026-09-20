@@ -1,0 +1,487 @@
+[
+  {
+    "updatedAt": "2026-09-20T09:23:21.487Z",
+    "createdAt": "2026-09-20T09:23:21.487Z",
+    "id": "cZQC9oDnDM5dNo1c",
+    "name": "short-newsletter-automation-immo",
+    "description": null,
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "content": "## Configuration requise avant activation\n\nVariante courte de « Newsletter immobilière mensuelle » : 1 seul article par thème, rédaction condensée pour une lecture en 3 minutes maximum. Partage le même historique anti-doublon que la version longue (même Google Sheet) : un article déjà utilisé dans l'une n'est jamais repris dans l'autre.\n\n1. **Anthropic (Claude + recherche web)** : réutilise l'identifiant \"Header Auth\" (`x-api-key`) déjà configuré pour la version longue sur le nœud \"Sélection et rédaction (Claude)\".\n2. **Historique des articles (anti-doublon)** : réutilise le même fichier `historique_articles_newsletter` (dossier Drive \"IA\" du compte rlacamoire@efficity.com) et le même identifiant Google Sheets OAuth2 que la version longue — déjà référencés dans \"Lire historique\" et \"Enregistrer les articles utilisés\".\n3. **Google Docs** : réutilise l'identifiant \"Google Docs account\" déjà configuré dans ce n8n.\n4. **Blocs récurrents** : mettez à jour les textes \"apporteur d'affaires\" et \"recrutement\" dans le nœud \"Blocs récurrents\" dès que votre dispositif change (identiques à la version longue, à synchroniser manuellement si vous les modifiez).\n5. **Fréquence** : ajustez le jour/l'heure dans \"Déclencheur mensuel\" (par défaut : le 10 du mois à 8h, pour s'intercaler avec la version longue du 25).\n6. **Étape finale volontairement manuelle** : ce workflow s'arrête à un brouillon Google Doc + une notification email. Une fois relu/ajusté, copiez le contenu final dans le module newsletter de votre CRM et lancez l'envoi vous-même.\n7. Activez le workflow une fois tout configuré.",
+          "height": 620,
+          "width": 480,
+          "color": 5
+        },
+        "id": "sticky-config-notes",
+        "name": "Notes de configuration",
+        "type": "n8n-nodes-base.stickyNote",
+        "typeVersion": 1,
+        "position": [
+          -208,
+          -688
+        ]
+      },
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "cronExpression",
+                "expression": "0 8 10 * *"
+              }
+            ]
+          }
+        },
+        "id": "trigger-monthly",
+        "name": "Déclencheur mensuel",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          208
+        ]
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1APvcEyO0lWfrTFpCDrBZ-euPxKN5vqKlOdTvcyjOF_w",
+            "mode": "id",
+            "cachedResultName": "historique_articles_newsletter"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "0",
+            "mode": "id",
+            "cachedResultName": "Premier onglet (gid=0)"
+          },
+          "options": {}
+        },
+        "id": "sheets-lire-historique",
+        "name": "Lire historique",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.5,
+        "position": [
+          240,
+          384
+        ],
+        "alwaysOutputData": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "KJfx6jP8tDdMuYFb",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "assign-texte-apporteur",
+                "name": "texte_apporteur",
+                "value": "Vous connaissez quelqu’un qui vend, achète ou loue ? Devenez apporteur d’affaires : [à compléter avec votre texte, votre lien et le détail de la rémunération].",
+                "type": "string"
+              },
+              {
+                "id": "assign-texte-recrutement",
+                "name": "texte_recrutement",
+                "value": "Notre équipe de consultants immobiliers s’agrandit. Envie de rejoindre l’aventure ? [à compléter avec votre texte et votre lien de contact].",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "set-blocs-recurrents",
+        "name": "Blocs récurrents",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          240,
+          560
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const blocs = $('Blocs récurrents').first().json;\nconst excludedUrls = $('Lire historique').all().map(item => (item.json.url || '').trim()).filter(Boolean);\n\nconst now = new Date();\nconst moisAnnee = now.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'Europe/Paris' });\n\nconst systemPrompt = \"Tu es le redacteur de la newsletter mensuelle d’un professionnel de l’immobilier francais (agent, plus un reseau d’apporteurs d’affaires et de consultants). Utilise l’outil de recherche web pour trouver, pour CHACUN des 4 themes suivants, UN SEUL article recent (de preference des dernieres semaines), le plus pertinent, fiable et en francais : (1) economie et taux d’interet / marche immobilier, (2) reglementation immobiliere (lois, fiscalite, diagnostics...), (3) amenagement et travaux, (4) confort thermique et energie dans le logement. Privilegie des sources serieuses (presse specialisee, sites institutionnels, notaires, ADEME, etc.). Ne propose jamais une URL presente dans cette liste deja utilisee : \" + JSON.stringify(excludedUrls) + \". Une fois tes recherches terminees, termine ta reponse par UNIQUEMENT un objet JSON valide (rien avant, rien apres), au format exact : {\\\"sections\\\":[{\\\"category\\\":\\\"...\\\",\\\"categoryLabel\\\":\\\"...\\\",\\\"titre\\\":\\\"...\\\",\\\"synthese\\\":\\\"...\\\",\\\"source_url\\\":\\\"...\\\"}],\\\"intro_apporteur\\\":\\\"...\\\",\\\"intro_recrutement\\\":\\\"...\\\"}. Chaque synthese fait 1 a 2 phrases maximum (concise et informative), ton professionnel et chaleureux, sans jargon, destinee a des particuliers proprietaires ou vendeurs. L’ensemble de la newsletter (les 4 syntheses et les deux blocs fixes) doit rester tres court : environ 400 a 500 mots au total, pour une lecture en 3 minutes maximum. intro_apporteur et intro_recrutement sont une phrase d’accroche originale et renouvelee introduisant les blocs fixes fournis ci-dessous, sans en changer le fond.\";\n\nconst userPrompt = \"Mois de la newsletter : \" + moisAnnee + \".\\nBloc apporteur d’affaires existant : \" + blocs.texte_apporteur + \"\\nBloc recrutement existant : \" + blocs.texte_recrutement;\n\nreturn [{\n  json: {\n    moisAnnee,\n    claudeRequestBody: {\n      model: 'claude-opus-5',\n      max_tokens: 8000,\n      system: systemPrompt,\n      tools: [\n        {\n          type: 'web_search_20260209',\n          name: 'web_search',\n          max_uses: 10,\n        },\n      ],\n      messages: [\n        { role: 'user', content: userPrompt },\n      ],\n    },\n  },\n}];"
+        },
+        "id": "code-preparer-prompt",
+        "name": "Préparer le prompt",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          464,
+          208
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://api.anthropic.com/v1/messages",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ $json.claudeRequestBody }}",
+          "options": {
+            "timeout": 180000
+          }
+        },
+        "id": "http-claude",
+        "name": "Sélection et rédaction (Claude)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          688,
+          208
+        ],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "XdnEskOS4aePTeR1",
+            "name": "Anthropic API (x-api-key)"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const blocks = $json.content || [];\nconst textBlocks = blocks.filter(b => b.type === 'text');\nconst raw = textBlocks.length ? textBlocks[textBlocks.length - 1].text : '';\nconst cleaned = raw.trim().replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();\n\nlet data;\ntry {\n  data = JSON.parse(cleaned);\n} catch (e) {\n  // Claude a parfois ajoute du texte avant/apres le JSON (ex: limite d'outils atteinte).\n  // On extrait le premier bloc { ... } valide dans la reponse.\n  const firstBrace = cleaned.indexOf('{');\n  const lastBrace = cleaned.lastIndexOf('}');\n  if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) {\n    throw new Error('Reponse Claude non parseable en JSON : ' + raw);\n  }\n  try {\n    data = JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));\n  } catch (e2) {\n    throw new Error('Reponse Claude non parseable en JSON : ' + raw);\n  }\n}\n\nreturn [{ json: data }];"
+        },
+        "id": "code-extraire-reponse",
+        "name": "Extraire la réponse Claude",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          912,
+          208
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const data = $json;\nconst blocs = $('Blocs récurrents').first().json;\nconst moisAnnee = $('Préparer le prompt').first().json.moisAnnee;\n\nconst lignes = [];\nlignes.push('NEWSLETTER IMMOBILIÈRE (VERSION COURTE) - ' + moisAnnee.toUpperCase());\nlignes.push('');\n\nfor (const section of data.sections || []) {\n  lignes.push('— ' + (section.categoryLabel || section.category).toUpperCase() + ' —');\n  lignes.push(section.titre || '');\n  lignes.push(section.synthese || '');\n  if (section.source_url) lignes.push('Source : ' + section.source_url);\n  lignes.push('');\n}\n\nlignes.push('— DEVENIR APPORTEUR D’AFFAIRES —');\nlignes.push(data.intro_apporteur || '');\nlignes.push(blocs.texte_apporteur || '');\nlignes.push('');\n\nlignes.push('— REJOINDRE L’ÉQUIPE —');\nlignes.push(data.intro_recrutement || '');\nlignes.push(blocs.texte_recrutement || '');\n\nreturn [{\n  json: {\n    titreDoc: 'Newsletter immobilière courte - ' + moisAnnee,\n    texteFinal: lignes.join('\\n'),\n    urlsSelectionnees: (data.sections || []).map(s => s.source_url).filter(Boolean),\n  },\n}];"
+        },
+        "id": "code-construire-final",
+        "name": "Construire le contenu final",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1120,
+          208
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://docs.googleapis.com/v1/documents",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googleDocsOAuth2Api",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ { \"title\": $json.titreDoc } }}",
+          "options": {}
+        },
+        "id": "http-creer-doc",
+        "name": "Créer le document Google Docs",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1344,
+          64
+        ],
+        "credentials": {
+          "googleDocsOAuth2Api": {
+            "id": "1AAmuRuThKsI9qSH",
+            "name": "Google Docs account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://docs.googleapis.com/v1/documents/{{ $json.documentId }}:batchUpdate",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googleDocsOAuth2Api",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ { \"requests\": [ { \"insertText\": { \"location\": { \"index\": 1 }, \"text\": $('Construire le contenu final').first().json.texteFinal } } ] } }}",
+          "options": {}
+        },
+        "id": "http-inserer-contenu",
+        "name": "Insérer le contenu",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1568,
+          64
+        ],
+        "credentials": {
+          "googleDocsOAuth2Api": {
+            "id": "1AAmuRuThKsI9qSH",
+            "name": "Google Docs account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "sendTo": "rlacamoire@gmail.com",
+          "subject": "=Brouillon newsletter courte prêt - {{ $('Préparer le prompt').first().json.moisAnnee }}",
+          "message": "=Le brouillon de la newsletter courte du mois est prêt (1 article par thème, lecture 3 minutes).\n\nRelisez-le et ajustez-le ici :\nhttps://docs.google.com/document/d/{{ $('Créer le document Google Docs').first().json.documentId }}/edit\n\nUne fois validé, copiez le contenu final dans le module newsletter du CRM et lancez l’envoi depuis là-bas.",
+          "options": {}
+        },
+        "id": "gmail-notifier",
+        "name": "Notifier - brouillon prêt",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.2,
+        "position": [
+          1792,
+          64
+        ],
+        "webhookId": "c3539d14-a8e8-4a29-801f-35739e911aa2",
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "8BNQqaBRp2Qdn3yz",
+            "name": "Gmail account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const data = $json;\nconst today = new Date().toISOString().slice(0, 10);\nreturn (data.urlsSelectionnees || []).map(url => ({ json: { url, date: today } }));"
+        },
+        "id": "code-preparer-historique",
+        "name": "Préparer les lignes historique",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1344,
+          352
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "1APvcEyO0lWfrTFpCDrBZ-euPxKN5vqKlOdTvcyjOF_w",
+            "mode": "id",
+            "cachedResultName": "historique_articles_newsletter"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "0",
+            "mode": "id",
+            "cachedResultName": "Premier onglet (gid=0)"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "url": "={{ $json.url }}",
+              "date": "={{ $json.date }}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "url",
+                "displayName": "url",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "date",
+                "displayName": "date",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "id": "sheets-enregistrer-historique",
+        "name": "Enregistrer les articles utilisés",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.5,
+        "position": [
+          1568,
+          352
+        ],
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "KJfx6jP8tDdMuYFb",
+            "name": "Google Sheets account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Déclencheur mensuel": {
+        "main": [
+          [
+            {
+              "node": "Lire historique",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Préparer le prompt": {
+        "main": [
+          [
+            {
+              "node": "Sélection et rédaction (Claude)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Sélection et rédaction (Claude)": {
+        "main": [
+          [
+            {
+              "node": "Extraire la réponse Claude",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extraire la réponse Claude": {
+        "main": [
+          [
+            {
+              "node": "Construire le contenu final",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Construire le contenu final": {
+        "main": [
+          [
+            {
+              "node": "Créer le document Google Docs",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Préparer les lignes historique",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Créer le document Google Docs": {
+        "main": [
+          [
+            {
+              "node": "Insérer le contenu",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Insérer le contenu": {
+        "main": [
+          [
+            {
+              "node": "Notifier - brouillon prêt",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Préparer les lignes historique": {
+        "main": [
+          [
+            {
+              "node": "Enregistrer les articles utilisés",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Lire historique": {
+        "main": [
+          [
+            {
+              "node": "Blocs récurrents",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Blocs récurrents": {
+        "main": [
+          [
+            {
+              "node": "Préparer le prompt",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": {},
+    "versionId": "a65b1d50-3f4d-439f-8159-4a60294a90e7",
+    "activeVersionId": null,
+    "versionCounter": 1,
+    "triggerCount": 0,
+    "tags": [],
+    "shared": [
+      {
+        "updatedAt": "2026-09-20T09:23:21.490Z",
+        "createdAt": "2026-09-20T09:23:21.490Z",
+        "role": "workflow:owner",
+        "workflowId": "cZQC9oDnDM5dNo1c",
+        "projectId": "0JhxFsTzO9CFk8lC",
+        "project": {
+          "updatedAt": "2026-02-10T10:02:21.311Z",
+          "createdAt": "2026-02-10T09:56:38.849Z",
+          "id": "0JhxFsTzO9CFk8lC",
+          "name": "renaud Lacamoire <rlacamoire@gmail.com>",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "creatorId": "90c2e916-f191-4701-bb9b-0fd462632a9e"
+        }
+      }
+    ]
+  }
+]
